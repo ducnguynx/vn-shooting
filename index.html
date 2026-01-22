@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IR LED Simulator V5: 530mm Sensor Array</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        
+        /* Layout Grid */
+        .container { display: grid; grid-template-columns: 320px 1fr; gap: 20px; max-width: 1200px; width: 100%; }
+        .sidebar { display: flex; flex-direction: column; gap: 20px; }
+        .main-view { display: flex; flex-direction: column; gap: 10px; align-items: center; }
+
+        /* Panels */
+        .panel { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+        
+        h2 { margin: 0 0 15px 0; font-size: 18px; color: #333; }
+        h3 { margin: 0 0 10px 0; font-size: 14px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; }
+
+        /* Controls */
+        .slider-group { margin-bottom: 20px; }
+        .slider-group label { display: flex; justify-content: space-between; font-weight: bold; font-size: 14px; margin-bottom: 5px; }
+        input[type=range] { width: 100%; cursor: pointer; }
+        
+        .toggle-row { display: flex; justify-content: space-between; align-items: center; margin: 8px 0; font-size: 14px; }
+        .pos-badge { background: #eee; padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 12px; }
+
+        /* Canvases */
+        canvas { background: #fff; cursor: crosshair; touch-action: none; display: block; }
+        #simCanvas { border-radius: 8px 8px 0 0; border: 1px solid #ccc; border-bottom: none; }
+        #graphCanvas { border-radius: 0 0 8px 8px; border: 1px solid #ccc; background: #fcfcfc; }
+
+        /* Legend */
+        .info-box { font-size: 13px; color: #555; line-height: 1.4; border-top: 1px solid #eee; padding-top: 10px; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="sidebar">
+            <div class="panel">
+                <h2>Configuration</h2>
+                
+                <div class="slider-group">
+                    <label>LED Frame Size (Square): <span id="frame-val">600 mm</span></label>
+                    <input type="range" id="frameSlider" min="530" max="1000" value="600">
+                    <div style="font-size:11px; color:#888; margin-top:5px;">
+                        Adjusts the mounting distance of the LEDs. <br>
+                        <strong>Sensor Array is FIXED at 530 mm.</strong>
+                    </div>
+                </div>
+
+                <hr style="border:0; border-top:1px solid #eee; margin:15px 0;">
+
+                <h3>Active LEDs (Top Axis)</h3>
+                <div id="led-controls"></div>
+                
+                <div class="info-box">
+                    <p><strong>Graph Explanation:</strong></p>
+                    <p>The graph shows the <strong>Irradiance ($mW/m^2$)</strong> received by the bottom sensor strip from the currently ACTIVE top LEDs.</p>
+                    <p>Datasheet: $I_e = 1025$ mW/sr, $\pm 40^\circ$ half-angle.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="main-view">
+            <canvas id="simCanvas" width="700" height="600"></canvas>
+            
+            <canvas id="graphCanvas" width="700" height="150"></canvas>
+        </div>
+    </div>
+
+<script>
+    const simCanvas = document.getElementById('simCanvas');
+    const graphCanvas = document.getElementById('graphCanvas');
+    const ctx = simCanvas.getContext('2d');
+    const gCtx = graphCanvas.getContext('2d');
+
+    // --- CONFIGURATION ---
+    // World coordinates (0,0 is center of target)
+    const TARGET_DIA = 500;
+    const SENSOR_WIDTH = 530; // <--- UPDATED TO 530MM
+    const SENSOR_Y = SENSOR_WIDTH / 2; // Position of bottom sensor strip relative to center
+    
+    // LED Params
+    const I0 = 1025; // mW/sr
+    const HALF_ANGLE = 40; // degrees
+    const BEAM_EXPONENT = 2.6; // Approx for +/- 40 deg half angle
+
+    // Viewport scaling
+    const SCALE = 0.6; // Scale down to fit canvas
+    const CENTER_X = simCanvas.width / 2;
+    const CENTER_Y = simCanvas.height / 2;
+
+    // STATE
+    let frameSize = 600;
+    // Initial positions relative to center
+    let leds = [
+        { x: -200, on: true }, 
+        { x: 0,    on: true },
+        { x: 200,  on: true }
+    ];
+    let dragIdx = -1;
+
+    // --- INIT ---
+    const slider = document.getElementById('frameSlider');
+    const frameVal = document.getElementById('frame-val');
+    const ctrlDiv = document.getElementById('led-controls');
+
+    slider.oninput = (e) => {
+        frameSize = parseInt(e.target.value);
+        frameVal.innerText = frameSize + " mm";
+        draw();
+    };
+
+    function initCtrls() {
+        ctrlDiv.innerHTML = '';
+        leds.forEach((led, i) => {
+            const row = document.createElement('div');
+            row.className = 'toggle-row';
+            
+            const label = document.createElement('label');
+            label.style.display = 'flex';
+            label.style.alignItems = 'center';
+            label.style.cursor = 'pointer';
+            
+            const chk = document.createElement('input');
+            chk.type = 'checkbox';
+            chk.checked = led.on;
+            chk.style.marginRight = '10px';
+            chk.onchange = (e) => {
+                led.on = e.target.checked;
+                draw();
+            };
+
+            const txt = document.createElement('span');
+            txt.innerText = `LED ${i+1}`;
+
+            label.appendChild(chk);
+            label.appendChild(txt);
+
+            const badge = document.createElement('span');
+            badge.className = 'pos-badge';
+            badge.id = `badge-${i}`;
+            badge.innerText = Math.round(led.x) + ' mm';
+
+            row.appendChild(label);
+            row.appendChild(badge);
+            ctrlDiv.appendChild(row);
+        });
+    }
+
+    // --- PHYSICS ENGINE ---
+    function calculateIrradiance(sensorX) {
+        let totalE = 0;
+        const ledY = -frameSize / 2;
+
+        leds.forEach(led => {
+            if (!led.on) return;
+
+            const dx = sensorX - led.x;
+            const dy = SENSOR_Y - ledY; // Vertical distance
+            const distMM = Math.sqrt(dx*dx + dy*dy);
+            const distM = distMM / 1000.0; // convert to meters
+
+            // Angle calc (0 is straight down)
+            const theta = Math.atan(Math.abs(dx) / dy);
+            
+            // Beam profile
+            const thetaDeg = theta * 180 / Math.PI;
+            let intensityFactor = 0;
+            if (thetaDeg < 90) {
+                intensityFactor = Math.pow(Math.cos(theta), BEAM_EXPONENT);
+            }
+
+            const I_actual = I0 * intensityFactor;
+            
+            // Irradiance E = (I / d^2) * cos(theta)
+            const E = (I_actual / (distM * distM)) * Math.cos(theta);
+            
+            totalE += E;
+        });
+        return totalE;
+    }
+
+    // --- DRAWING ---
+    function worldToScreen(x, y) {
+        return {
+            x: CENTER_X + x * SCALE,
+            y: CENTER_Y + y * SCALE
+        };
+    }
+
+    function draw() {
+        // 1. CLEAR
+        ctx.clearRect(0, 0, simCanvas.width, simCanvas.height);
+        
+        // 2. DRAW TARGET (Fixed Center)
+        const tR = (TARGET_DIA/2) * SCALE;
+        const bR = (200/2) * SCALE; // Black zone
+        
+        // 1-Ring (Scoring Zone)
+        ctx.beginPath();
+        ctx.arc(CENTER_X, CENTER_Y, tR, 0, Math.PI*2);
+        ctx.fillStyle = "#e8e8e8";
+        ctx.fill();
+        ctx.strokeStyle = "#ccc";
+        ctx.stroke();
+
+        // Black Zone
+        ctx.beginPath();
+        ctx.arc(CENTER_X, CENTER_Y, bR, 0, Math.PI*2);
+        ctx.fillStyle = "#111";
+        ctx.fill();
+
+        // 3. DRAW SENSOR FRAME (Fixed 530mm)
+        const sHalf = SENSOR_WIDTH / 2;
+        const sY = sHalf; // Bottom
+        
+        // Draw fixed sensor line
+        const p1 = worldToScreen(-sHalf, sY);
+        const p2 = worldToScreen(sHalf, sY);
+        
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = "#333";
+        ctx.beginPath();
+        ctx.moveTo(p1.x, p1.y);
+        ctx.lineTo(p2.x, p2.y);
+        ctx.stroke();
+        
+        // Label
+        ctx.fillStyle = "#333";
+        ctx.font = "12px Arial";
+        ctx.fillText(`FIXED SENSOR STRIP (${SENSOR_WIDTH}mm)`, p1.x, p1.y + 15);
+
+        // 4. DRAW LED FRAME (Adjustable)
+        const ledY = -frameSize / 2;
+        const fHalf = frameSize / 2;
+        
+        // Draw LED mounting line
+        const l1 = worldToScreen(-fHalf, ledY);
+        const l2 = worldToScreen(fHalf, ledY);
+        
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = "#999";
+        ctx.setLineDash([5, 5]);
+        ctx.beginPath();
+        ctx.moveTo(l1.x, l1.y);
+        ctx.lineTo(l2.x, l2.y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        
+        ctx.fillStyle = "#999";
+        ctx.fillText(`LED FRAME WIDTH: ${frameSize}mm`, l1.x, l1.y - 10);
+
+        // 5. DRAW BEAMS & LEDs
+        leds.forEach((led, i) => {
+            const pos = worldToScreen(led.x, ledY);
+            
+            if (led.on) {
+                ctx.beginPath();
+                ctx.moveTo(pos.x, pos.y);
+                // Draw to corners of sensor strip
+                ctx.fillStyle = "rgba(255, 200, 0, 0.15)";
+                ctx.lineTo(p1.x, p1.y);
+                ctx.lineTo(p2.x, p2.y);
+                ctx.fill();
+            }
+
+            // Draw LED Dot
+            ctx.beginPath();
+            ctx.arc(pos.x, pos.y, 6, 0, Math.PI*2);
+            ctx.fillStyle = led.on ? "red" : "#ccc";
+            ctx.fill();
+            ctx.strokeStyle = "#333";
+            ctx.lineWidth = 1;
+            ctx.stroke();
+
+            // Update badge text
+            const badge = document.getElementById(`badge-${i}`);
+            if(badge) badge.innerText = Math.round(led.x) + ' mm';
+        });
+
+        drawGraph();
+    }
+
+    // --- GRAPH ---
+    function drawGraph() {
+        const w = graphCanvas.width;
+        const h = graphCanvas.height;
+        gCtx.clearRect(0, 0, w, h);
+        
+        // Grid
+        gCtx.strokeStyle = "#eee";
+        gCtx.lineWidth = 1;
+        gCtx.beginPath();
+        for(let i=0; i<4; i++) {
+            let y = h - (i * h/4);
+            gCtx.moveTo(0, y);
+            gCtx.lineTo(w, y);
+        }
+        gCtx.stroke();
+
+        // Plot Curve
+        gCtx.strokeStyle = "#007bff";
+        gCtx.lineWidth = 2;
+        gCtx.beginPath();
+
+        const steps = 100;
+        let maxVal = 0;
+        const points = [];
+
+        for(let i=0; i<=steps; i++) {
+            const pct = i/steps;
+            // Map 0..1 to -265..+265 (Sensor Strip coords for 530mm)
+            const sensorX = (pct - 0.5) * SENSOR_WIDTH;
+            const val = calculateIrradiance(sensorX);
+            points.push({x: pct*w, y: val});
+            if(val > maxVal) maxVal = val;
+        }
+
+        // Auto-scale Y (limit min to 100)
+        const yMax = Math.max(3000, maxVal * 1.1);
+        
+        points.forEach((p, i) => {
+            const yPlot = h - (p.y / yMax) * h;
+            if (i===0) gCtx.moveTo(p.x, yPlot);
+            else gCtx.lineTo(p.x, yPlot);
+        });
+        gCtx.stroke();
+        
+        // Fill
+        gCtx.fillStyle = "rgba(0, 123, 255, 0.1)";
+        gCtx.lineTo(w, h);
+        gCtx.lineTo(0, h);
+        gCtx.fill();
+
+        // Text Labels
+        gCtx.fillStyle = "#666";
+        gCtx.font = "10px Arial";
+        gCtx.fillText(`Max: ${Math.round(maxVal)} mW/m²`, 10, 15);
+        gCtx.fillText(`Scale: 0 - ${Math.round(yMax)}`, w - 80, 15);
+        
+        // Dynamic labels based on SENSOR_WIDTH
+        const halfW = SENSOR_WIDTH / 2;
+        gCtx.fillText(`Left (-${halfW}mm)`, 10, h-5);
+        gCtx.fillText(`Right (+${halfW}mm)`, w-110, h-5);
+    }
+
+    // --- INTERACTIONS ---
+    function getMousePos(e) {
+        const r = simCanvas.getBoundingClientRect();
+        return { x: e.clientX - r.left, y: e.clientY - r.top };
+    }
+
+    simCanvas.addEventListener('mousedown', (e) => {
+        const m = getMousePos(e);
+        const ledY = -frameSize / 2;
+        
+        leds.forEach((led, i) => {
+            const sc = worldToScreen(led.x, ledY);
+            const dist = Math.hypot(m.x - sc.x, m.y - sc.y);
+            if (dist < 15) dragIdx = i;
+        });
+    });
+
+    simCanvas.addEventListener('mousemove', (e) => {
+        if (dragIdx === -1) return;
+        const m = getMousePos(e);
+        
+        // Convert screen X back to world X
+        let newX = (m.x - CENTER_X) / SCALE;
+        
+        // Limit to frame size
+        const limit = frameSize / 2;
+        if (newX < -limit) newX = -limit;
+        if (newX > limit) newX = limit;
+        
+        leds[dragIdx].x = newX;
+        draw();
+    });
+
+    window.addEventListener('mouseup', () => dragIdx = -1);
+
+    initCtrls();
+    draw();
+
+</script>
+</body>
+</html>
