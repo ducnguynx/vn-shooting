@@ -1,4 +1,6 @@
-# How to choose Transimpedance Amplifier
+# Timing & requirements
+
+## How to choose Transimpedance Amplifier
 
 Based on [Texas Instruments Guide](https://www.youtube.com/watch?v=Q-AZpagmtCw)
 
@@ -19,4 +21,8 @@ Now, calculate the Minimum GBW required to support that $R_F$ and $C_F$ without 
 $$
 GBW_{required} > \frac{C_{in} + C_F}{2\pi \cdot R_F \cdot C_F^2}
 $$
+
+## How to calculate rise time of the signal
+s
+
 
