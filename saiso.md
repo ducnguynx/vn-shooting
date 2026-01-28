@@ -168,7 +168,7 @@ $$
 Hay
 
 $$
-y_c = \frac{r}{AD} \cdot \left( \frac{DE \cdot AH + DH \cdot AE}{DH - DE} \right)
+y_c = \frac{r}{AD} \cdot \left( \frac{DE \cdot \sqrt{AD^2 + DH^2} + DH \cdot \sqrt{AD^2 + DE^2}}{DH - DE} \right)
 $$
 
 # Tính toán sai số cho $x_c$ và $y_c$
@@ -233,7 +233,7 @@ $$
 
 #### Tổng sai số $\Delta x_c$
 $$
-\Delta x_c = \delta \cdot \frac{r}{DH - DE} \left( \left| \frac{DH}{AH} - \frac{AH + AE}{DH - DE} \right| + \left| \frac{DE}{AE} + \frac{AH + AE}{DH - DE} \right| \right)
+\Delta x_c = \delta \cdot \frac{r}{DH - DE} \left( \left| \frac{DH}{\sqrt{AD^2+DH^2}} - \frac{\sqrt{AD^2+DH^2} + \sqrt{AD^2+DE^2}}{DH - DE} \right| + \left| \frac{DE}{\sqrt{AD^2+DE^2}} + \frac{\sqrt{AD^2+DH^2} + \sqrt{AD^2+DE^2}}{DH - DE} \right| \right)
 $$
 
 ---
@@ -319,3 +319,26 @@ Với
 $\Omega_1 = \frac{DH \cdot DE(DH - DE)}{AH} - DE(AH + AE)$
 
 $\Omega_2 = DH(AH + AE) + \frac{DH \cdot DE(DH - DE)}{AE}$
+
+## Ví dụ
+
+![alt text](image-2.png)
+
+![alt text](image-3.png)
+
+$\Omega_1 = \frac{DH \cdot DE(DH - DE)}{AH} - DE(AH + AE)$
+
+$$
+DH = D'G = 151.4
+
+$$
+$$
+DE = D'F = 29.0
+$$
+$$
+AH = GB  = 665.2
+$$
+$$
+AE = FB  = 650.2
+
+$$
