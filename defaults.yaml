@@ -1,0 +1,22 @@
+# defaults.yaml
+from: markdown+tex_math_single_backslash
+to: pdf
+pdf-engine: xelatex
+
+variables:
+  # Font settings for Vietnamese support
+  mainfont: "DejaVu Serif"
+  sansfont: "DejaVu Sans"
+  monofont: "DejaVu Sans Mono"
+  
+  # Page layout (Standard academic margins)
+  geometry:
+    - top=2cm
+    - left=2cm
+    - right=2cm
+    - bottom=2cm
+  
+  # Text settings
+  fontsize: 12pt
+  linestretch: 1.25
+  links-as-notes: true

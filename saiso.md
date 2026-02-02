@@ -21,7 +21,7 @@ Chọn điểm $A$ $(0,0)$ ở gốc tọa độ. Phương trình dạng chuẩn
 1.  Line AE: $DE \cdot x + AD \cdot y = 0$
 2.  Line AH: $DH \cdot x + AD \cdot y = 0$
    
-<img src="image-1.png" width="40%" height="40%" alt="Alt text description">
+![Hình minh họa setup (A là LED phát DC là thanh cảm biến)](image-1.png)
 
 Khoảng cách $d$ từ một điểm $(x_c, y_c)$ tới đường thẳng có phương trình $Ax + By = 0$ được định nghĩa bởi $d = \frac{|Ax_c + By_c|}{\sqrt{A^2+B^2}}$.
 
@@ -232,8 +232,12 @@ $$
 $$
 
 #### Tổng sai số $\Delta x_c$
+
 $$
-\Delta x_c = \delta \cdot \frac{r}{DH - DE} \left( \left| \frac{DH}{\sqrt{AD^2+DH^2}} - \frac{\sqrt{AD^2+DH^2} + \sqrt{AD^2+DE^2}}{DH - DE} \right| + \left| \frac{DE}{\sqrt{AD^2+DE^2}} + \frac{\sqrt{AD^2+DH^2} + \sqrt{AD^2+DE^2}}{DH - DE} \right| \right)
+\begin{split}
+\Delta x_c &= \delta \cdot \frac{r}{DH - DE} \left( \left| \frac{DH}{\sqrt{AD^2+DH^2}} - \frac{\sqrt{AD^2+DH^2} + \sqrt{AD^2+DE^2}}{DH - DE} \right| \right. \\
+&\quad + \left. \left| \frac{DE}{\sqrt{AD^2+DE^2}} + \frac{\sqrt{AD^2+DH^2} + \sqrt{AD^2+DE^2}}{DH - DE} \right| \right)
+\end{split}
 $$
 
 ---
@@ -320,25 +324,9 @@ $\Omega_1 = \frac{DH \cdot DE(DH - DE)}{AH} - DE(AH + AE)$
 
 $\Omega_2 = DH(AH + AE) + \frac{DH \cdot DE(DH - DE)}{AE}$
 
-## Ví dụ
+## Kết luận
 
-![alt text](image-2.png)
+Để đạt được độ chính xác 0.4mm (tọa độ x) thì độ phân giải của cảm biến IR ở hai bên phải là 0.01mm, điều này là không thể với cách làm sử dụng giá trị nhị phân 0-1 từ các cảm biến
 
-![alt text](image-3.png)
+![Kết quả Max-Min của sai số khi DH&DE thay đổi](image-4.png)
 
-$\Omega_1 = \frac{DH \cdot DE(DH - DE)}{AH} - DE(AH + AE)$
-
-$$
-DH = D'G = 151.4
-
-$$
-$$
-DE = D'F = 29.0
-$$
-$$
-AH = GB  = 665.2
-$$
-$$
-AE = FB  = 650.2
-
-$$

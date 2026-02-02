@@ -58,11 +58,11 @@ def calculate_delta_xc(DH, DE, delta, AD, r, xc_max, yc_max, k):
 # 1. INPUTS (Modify these values)
 # ==========================================
 # Constants
-delta_val = 1   # Input for delta
+delta_val = 0.01   # Input for delta
 AD_val = 650      # Input for AD
 r_val = 5.6       # Input for r (assumed constant)
 xc_max_val = 400  # Max allowed distance for xc
-yc_max_val = 150  # Max allowed distance for yc
+yc_max_val = 200  # Max allowed distance for yc
 k_val = 150        # Input for k (controls slope constraint yc < k/AD * xc)
 
 # Ranges for Variables (Start, Stop, Number of points)
